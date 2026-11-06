@@ -69,13 +69,13 @@ export const extractBooks = createServerFn({ method: "POST" })
       throw new Error("Couldn't read that photo. Try again.");
     }
     if (!found.length) return { count: 0 };
-    const rows = found.map((b, i) => ({
+    const rows = found.map((b) => ({
       user_id: context.userId,
       title: b.title,
       author: b.author,
       series_name: b.series_name,
       volume: b.volume,
-      sku: nextSku(data.skuStart, i),
+      sku: data.skuStart.trim(),
       needs_review: b.uncertain,
       review_note: b.note,
     }));
