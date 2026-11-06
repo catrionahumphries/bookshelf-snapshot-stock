@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Photo jobs are durable database rows awakened by insert/update webhooks, not browser-owned AI calls or permanent polling jobs, so processing survives leaving the app without idle Cloud work.
+- Worker callbacks verify a per-job random capability before privileged access, atomically claim one leased job, and commit inventory plus completion in one database transaction to prevent duplicate books.
+- Queue policy/credit/refusal pauses are persisted per user and require an explicit retry after recovery; never automatically replay uncertain AI outcomes.

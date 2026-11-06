@@ -8,6 +8,27 @@
       "when": 1793947937409,
       "tag": "0000_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793950066447,
+      "tag": "0001_photo_background_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793950190340,
+      "tag": "0002_photo_queue_refusal_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793950260840,
+      "tag": "0003_photo_queue_serial_delivery",
+      "breakpoints": true
     }
   ]
 }
