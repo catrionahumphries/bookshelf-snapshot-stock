@@ -14,16 +14,6 @@ const PROMPT = `You catalogue books for a second-hand bookseller.
 Reply ONLY with JSON: {"books":[{"title":string,"author":string,"series_name":string,"volume":string,"uncertain":boolean,"note":string}]}
 Use "" for unknown fields. "volume" is just the number (e.g. "3"), "" if not part of a series.`;
 
-// "SKU-1001" -> "SKU-1002"; plain prefix without number gets -1, -2...
-export function nextSku(start: string, i: number): string {
-  const s = start.trim();
-  if (!s) return "";
-  const m = s.match(/^(.*?)(\d+)$/);
-  if (!m) return i === 0 ? s : `${s}-${i + 1}`;
-  const digits = m[2] ?? "0";
-  return (m[1] ?? "") + (BigInt(digits) + BigInt(i)).toString().padStart(digits.length, "0");
-}
-
 export const extractBooks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => schema.parse(d))
