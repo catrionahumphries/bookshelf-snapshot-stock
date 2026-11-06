@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ApiPublicPhotoWorkerRouteImport } from './routes/api/public/photo-worker'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPhotoWorkerRoute = ApiPublicPhotoWorkerRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicPhotoWorkerRoute = ApiPublicPhotoWorkerRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/photo-worker'
+  fullPaths: '/' | '/reset-password' | '/api/public/photo-worker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/photo-worker'
-  id: '__root__' | '/' | '/api/public/photo-worker'
+  to: '/' | '/reset-password' | '/api/public/photo-worker'
+  id: '__root__' | '/' | '/reset-password' | '/api/public/photo-worker'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicPhotoWorkerRoute: typeof ApiPublicPhotoWorkerRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/photo-worker': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicPhotoWorkerRoute: ApiPublicPhotoWorkerRoute,
 }
 export const routeTree = rootRouteImport
