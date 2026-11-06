@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Camera, Download, Loader2, Trash2, BookOpen, AlertTriangle, Check, LogOut } from "lucide-react";
+import { Camera, Download, Loader2, Trash2, BookOpen, AlertTriangle, Check, LogOut, Images, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
-import { extractBooks } from "@/lib/books.functions";
+import { queuePhoto, retryPhoto } from "@/lib/photo-queue.functions";
+import { photoCounts, needsPhotoAttention, type PhotoJob } from "@/lib/photo-queue";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,7 +41,9 @@ async function shrink(file: File): Promise<string> {
   const c = document.createElement("canvas");
   c.width = Math.round(img.naturalWidth * s);
   c.height = Math.round(img.naturalHeight * s);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  const context = c.getContext("2d");
+  if (!context) { URL.revokeObjectURL(img.src); throw new Error("Couldn't prepare image"); }
+  context.drawImage(img, 0, 0, c.width, c.height);
   URL.revokeObjectURL(img.src);
   return c.toDataURL("image/jpeg", 0.85);
 }
@@ -103,38 +106,79 @@ function Inventory({ email }: { email: string }) {
   const [sku, setSku] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<"all" | "review">("all");
+  const [jobs, setJobs] = useState<PhotoJob[]>([]);
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const run = useServerFn(extractBooks);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const jobIdRef = useRef<string | null>(null);
+  const completedRef = useRef<Map<string, string> | null>(null);
+  const run = useServerFn(queuePhoto);
+  const retry = useServerFn(retryPhoto);
 
   const load = async () => {
     const { data, error } = await supabase.from("books").select("*").order("created_at", { ascending: false });
     if (error) toast.error("Couldn't load inventory"); else setBooks(data as Book[]);
   };
+  const loadJobs = async () => {
+    const { data, error } = await supabase.from("photo_jobs").select("id,sku,status,result_count,error_message,pause_kind,created_at,lease_until").order("created_at", { ascending: false });
+    if (error) { toast.error("Couldn't load photo queue"); return; }
+    const next = data ?? [];
+    const previous = completedRef.current;
+    if (previous) for (const job of next) {
+      if (job.status === "completed" && previous.get(job.id) !== "completed") {
+        toast.success(job.result_count ? `${job.result_count} books added${job.sku ? ` · ${job.sku}` : ""}` : `No books found${job.sku ? ` · ${job.sku}` : ""}`);
+        await load();
+      }
+    }
+    completedRef.current = new Map(next.map((job) => [job.id, job.status]));
+    setJobs(next);
+  };
   useEffect(() => {
     load();
-    const onFocus = () => load();
+    loadJobs();
+    const onFocus = () => { load(); loadJobs(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+  const counts = photoCounts(jobs);
+  useEffect(() => {
+    if (!counts.pending) return;
+    const timer = window.setInterval(() => { if (!document.hidden) loadJobs(); }, 5000);
+    return () => window.clearInterval(timer);
+  }, [counts.pending]);
 
   const onFile = async (f?: File) => {
     if (!f) return;
-    try { setImage(await shrink(f)); } catch { toast.error("Couldn't open that image"); }
+    setPreparing(true);
+    try { setImage(await shrink(f)); jobIdRef.current = crypto.randomUUID(); } catch { toast.error("Couldn't open that image"); }
+    finally { setPreparing(false); }
   };
 
   const process = async () => {
     if (!image) return;
     setBusy(true);
     try {
-      const r = await run({ data: { image, skuStart: sku } });
-      if (!r.count) toast.warning("No books found in that photo");
-      else toast.success(`${r.count} book${r.count > 1 ? "s" : ""} added${r.uncertain ? ` · ${r.uncertain} to check` : ""}`);
+      const id = jobIdRef.current ?? crypto.randomUUID();
+      jobIdRef.current = id;
+      const preview = window.location.hostname === "localhost" || window.location.hostname.startsWith("id-preview--") || window.location.hostname.includes("-dev.lovable.app");
+      await run({ data: { id, image, sku, preview } });
+      toast.success("Photo queued");
       setImage(null); setSku("");
+      jobIdRef.current = null;
       if (fileRef.current) fileRef.current.value = "";
-      await load();
+      if (cameraRef.current) cameraRef.current.value = "";
+      await loadJobs();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong");
     } finally { setBusy(false); }
+  };
+
+  const retryJob = async (id: string) => {
+    setRetrying(id);
+    try { await retry({ data: { id } }); toast.success("Photo queued again"); await loadJobs(); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Couldn't retry photo"); }
+    finally { setRetrying(null); }
   };
 
   const patch = async (id: string, p: Partial<Book>) => {
@@ -170,18 +214,36 @@ function Inventory({ email }: { email: string }) {
       </header>
 
       <section className="rounded-2xl border bg-card p-4 shadow-soft">
-        <label className="flex aspect-[4/3] w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed bg-muted/50 text-muted-foreground">
+        <div className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed bg-muted/50 text-muted-foreground">
           {image ? <img src={image} alt="Books preview" className="h-full w-full object-contain" /> : (
-            <span className="flex flex-col items-center gap-2 text-center"><Camera className="h-8 w-8" />Tap to photograph one or more books</span>
+            <span className="flex flex-col items-center gap-2 text-center">{preparing ? <Loader2 className="h-8 w-8 animate-spin" /> : <Camera className="h-8 w-8" />}<span>{preparing ? "Opening photo…" : "Book photo"}</span></span>
           )}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
-        </label>
-        <Input className="mt-3 h-12 text-base" placeholder="SKU number" value={sku} onChange={(e) => setSku(e.target.value)} />
+        </div>
+        <input ref={cameraRef} aria-label="Take book photo" type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy || preparing} onChange={(e) => onFile(e.target.files?.[0])} />
+        <input ref={fileRef} aria-label="Choose camera roll photo" type="file" accept="image/*" className="sr-only" disabled={busy || preparing} onChange={(e) => onFile(e.target.files?.[0])} />
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button variant="outline" className="h-12" disabled={busy || preparing} onClick={() => cameraRef.current?.click()}><Camera />Take photo</Button>
+          <Button variant="outline" className="h-12" disabled={busy || preparing} onClick={() => fileRef.current?.click()}><Images />Camera roll</Button>
+        </div>
+        <Input className="mt-3 h-12 text-base" placeholder="SKU number" aria-label="SKU number" maxLength={100} disabled={busy} value={sku} onChange={(e) => { setSku(e.target.value); jobIdRef.current = crypto.randomUUID(); }} />
         <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo gets this SKU.</p>
-        <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || !image}>
-          {busy ? <><Loader2 className="animate-spin" /> Reading &amp; researching…</> : "Process Books"}
+        <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || preparing || !image}>
+          {busy ? <><Loader2 className="animate-spin" /> Uploading…</> : "Queue Photo"}
         </Button>
       </section>
+
+      {jobs.length > 0 && <section className="mt-4 border-b pb-4" aria-label="Photo queue">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" role="status">
+          <span className="flex items-center gap-2">{counts.pending > 0 && <Loader2 className="h-4 w-4 animate-spin" />}{counts.pending} photos pending</span>
+          <span className="text-muted-foreground">{counts.completed} completed</span>
+          {counts.attention > 0 && <span className="text-warning">{counts.attention} need attention</span>}
+        </div>
+        {jobs.filter((job) => needsPhotoAttention(job)).map((job) => <div key={job.id} className="mt-3 flex items-start gap-3 text-sm">
+          <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-warning" />
+          <div className="min-w-0 flex-1"><p className="font-medium break-words">{job.sku || "Photo"}</p><p className="text-muted-foreground break-words">{job.error_message || "This photo hasn't finished. Retry when you're ready."}</p></div>
+          {job.pause_kind !== "refusal" && <Button variant="outline" size="sm" disabled={!!retrying} onClick={() => retryJob(job.id)}><RotateCcw className={retrying === job.id ? "animate-spin" : ""} />Retry</Button>}
+        </div>)}
+      </section>}
 
       <section className="mt-8">
         <div className="mb-3 flex flex-wrap items-center gap-2">
