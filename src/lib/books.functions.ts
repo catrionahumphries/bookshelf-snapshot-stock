@@ -1,30 +1,45 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const schema = z.object({
-  image: z
-    .string()
-    .startsWith("data:image/")
-    .max(8_000_000, "Image too large"),
+  image: z.string().startsWith("data:image/").max(8_000_000, "Image too large"),
+  skuStart: z.string().max(100).default(""),
 });
 
-export const extractBook = createServerFn({ method: "POST" })
+const PROMPT = `You catalogue books for a second-hand bookseller.
+1. Find EVERY distinct book visible in this photo (covers or spines), in left-to-right / top-to-bottom order.
+2. Read what you can, then use web search to fill in missing details (full title, author, series name, volume number) and to verify what you read.
+3. Mark a book "uncertain": true if the text is blurry/partly hidden, or you could not confirm it via search, and explain briefly in "note".
+Reply ONLY with JSON: {"books":[{"title":string,"author":string,"series_name":string,"volume":string,"uncertain":boolean,"note":string}]}
+Use "" for unknown fields. "volume" is just the number (e.g. "3"), "" if not part of a series.`;
+
+// "SKU-1001" -> "SKU-1002"; plain prefix without number gets -1, -2...
+export function nextSku(start: string, i: number): string {
+  const s = start.trim();
+  if (!s) return "";
+  const m = s.match(/^(.*?)(\d+)$/);
+  if (!m) return i === 0 ? s : `${s}-${i + 1}`;
+  const digits = m[2] ?? "0";
+  return (m[1] ?? "") + (BigInt(digits) + BigInt(i)).toString().padStart(digits.length, "0");
+}
+
+export const extractBooks = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => schema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { generateResponse, GatewayError } = await import("@lovable.dev/ai-gateway");
+    let found: { title: string; author: string; series_name: string; volume: string; uncertain: boolean; note: string }[] = [];
     try {
       const res = await generateResponse({
         model: "openai/gpt-6-astra",
+        tools: [{ type: "web_search" }],
         input: [
           {
             role: "user",
             content: [
-              {
-                type: "input_text",
-                text:
-                  'Read this book photo (cover or spine). Reply ONLY with JSON: {"title":string,"author":string,"series":string}. Use "" for series if none or unknown. Use "" if a field is unreadable.',
-              },
-              { type: "input_image", image_url: data.image, detail: "auto" },
+              { type: "input_text", text: PROMPT },
+              { type: "input_image", image_url: data.image, detail: "high" },
             ],
           },
         ],
@@ -36,16 +51,35 @@ export const extractBook = createServerFn({ method: "POST" })
       }
       const match = text.match(/\{[\s\S]*\}/);
       const parsed = match ? JSON.parse(match[0]) : {};
-      return {
-        title: String(parsed.title ?? "").trim(),
-        author: String(parsed.author ?? "").trim(),
-        series: String(parsed.series ?? "").trim(),
-      };
+      const s = (v: unknown) => String(v ?? "").trim();
+      found = (Array.isArray(parsed.books) ? parsed.books : []).map((b: { title?: unknown; author?: unknown; series_name?: unknown; volume?: unknown; uncertain?: unknown; note?: unknown }) => ({
+        title: s(b.title),
+        author: s(b.author),
+        series_name: s(b.series_name),
+        volume: s(b.volume),
+        uncertain: Boolean(b.uncertain) || !s(b.title) || !s(b.author),
+        note: s(b.note),
+      }));
     } catch (e) {
+      console.error(e);
       if (e instanceof GatewayError) {
         if (e.httpStatus === 429) throw new Error("Too many requests — wait a moment and try again.");
         if (e.httpStatus === 402) throw new Error("AI credits have run out. Please top up.");
       }
       throw new Error("Couldn't read that photo. Try again.");
     }
+    if (!found.length) return { count: 0 };
+    const rows = found.map((b, i) => ({
+      user_id: context.userId,
+      title: b.title,
+      author: b.author,
+      series_name: b.series_name,
+      volume: b.volume,
+      sku: nextSku(data.skuStart, i),
+      needs_review: b.uncertain,
+      review_note: b.note,
+    }));
+    const { error } = await context.supabase.from("books").insert(rows);
+    if (error) throw new Error("Couldn't save books.");
+    return { count: rows.length, uncertain: rows.filter((r) => r.needs_review).length };
   });
