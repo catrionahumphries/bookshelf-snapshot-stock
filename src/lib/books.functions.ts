@@ -20,8 +20,8 @@ export function nextSku(start: string, i: number): string {
   if (!s) return "";
   const m = s.match(/^(.*?)(\d+)$/);
   if (!m) return i === 0 ? s : `${s}-${i + 1}`;
-  const n = (BigInt(m[2]) + BigInt(i)).toString().padStart(m[2].length, "0");
-  return m[1] + n;
+  const digits = m[2] ?? "0";
+  return (m[1] ?? "") + (BigInt(digits) + BigInt(i)).toString().padStart(digits.length, "0");
 }
 
 export const extractBooks = createServerFn({ method: "POST" })
