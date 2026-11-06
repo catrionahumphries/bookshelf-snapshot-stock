@@ -52,7 +52,7 @@ export const extractBooks = createServerFn({ method: "POST" })
       const match = text.match(/\{[\s\S]*\}/);
       const parsed = match ? JSON.parse(match[0]) : {};
       const s = (v: unknown) => String(v ?? "").trim();
-      found = (Array.isArray(parsed.books) ? parsed.books : []).map((b: Record<string, unknown>) => ({
+      found = (Array.isArray(parsed.books) ? parsed.books : []).map((b: { title?: unknown; author?: unknown; series_name?: unknown; volume?: unknown; uncertain?: unknown; note?: unknown }) => ({
         title: s(b.title),
         author: s(b.author),
         series_name: s(b.series_name),
