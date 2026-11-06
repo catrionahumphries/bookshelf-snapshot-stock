@@ -61,7 +61,7 @@ function Index() {
   };
 
   const process = async () => {
-    if (!image) return toast.error("Add a photo first");
+    if (!image) { toast.error("Add a photo first"); return; }
     setBusy(true);
     try {
       const r = await run({ data: { image } });
