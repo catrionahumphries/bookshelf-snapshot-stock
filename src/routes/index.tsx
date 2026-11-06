@@ -93,6 +93,11 @@ function SignIn() {
         <Input className="h-12 text-base" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
         <Button className="h-12 w-full text-base" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : mode === "in" ? "Sign in" : "Create account"}</Button>
       </form>
+      {mode === "in" && <button className="mt-3 text-sm text-muted-foreground" onClick={async () => {
+        if (!email) { toast.error("Enter your email first"); return; }
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+        if (error) toast.error(error.message); else toast.success("Check your email for a reset link.");
+      }}>Forgot password?</button>}
       <button className="mt-4 text-sm text-primary" onClick={() => setMode(mode === "in" ? "up" : "in")}>
         {mode === "in" ? "New here? Create an account" : "Have an account? Sign in"}
       </button>
