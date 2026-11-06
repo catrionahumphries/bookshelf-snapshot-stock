@@ -176,8 +176,8 @@ function Inventory({ email }: { email: string }) {
           )}
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
         </label>
-        <Input className="mt-3 h-12 text-base" placeholder="Starting SKU (e.g. SKU-1001)" value={sku} onChange={(e) => setSku(e.target.value)} />
-        <p className="mt-1 px-1 text-xs text-muted-foreground">Several books in one photo get numbered up from this SKU.</p>
+        <Input className="mt-3 h-12 text-base" placeholder="SKU number" value={sku} onChange={(e) => setSku(e.target.value)} />
+        <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo gets this SKU.</p>
         <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || !image}>
           {busy ? <><Loader2 className="animate-spin" /> Reading &amp; researching…</> : "Process Books"}
         </Button>
