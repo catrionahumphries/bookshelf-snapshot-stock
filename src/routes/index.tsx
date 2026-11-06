@@ -106,6 +106,8 @@ function Inventory({ email }: { email: string }) {
   const [sku, setSku] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<"all" | "review">("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ key: Field; dir: "asc" | "desc" } | null>(null);
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
   const [retrying, setRetrying] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
@@ -202,7 +204,11 @@ function Inventory({ email }: { email: string }) {
   };
 
   const reviewCount = books.filter((b) => b.needs_review).length;
-  const shown = filter === "review" ? books.filter((b) => b.needs_review) : books;
+  const q = query.trim().toLowerCase();
+  const shown = (filter === "review" ? books.filter((b) => b.needs_review) : books)
+    .filter((b) => !q || COLS.some(([k]) => (b[k] ?? "").toLowerCase().includes(q)))
+    .sort((a, b) => sort ? (sort.dir === "asc" ? 1 : -1) * (a[sort.key] ?? "").localeCompare(b[sort.key] ?? "", undefined, { numeric: true, sensitivity: "base" }) : 0);
+  const toggleSort = (key: Field) => setSort((s) => s?.key !== key ? { key, dir: "asc" } : s.dir === "asc" ? { key, dir: "desc" } : null);
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-16 pt-6">
@@ -254,13 +260,18 @@ function Inventory({ email }: { email: string }) {
           </div>
           <Button className="ml-auto" variant="outline" onClick={download} disabled={!books.length}><Download /> CSV</Button>
         </div>
+        <Input className="mb-3 h-11 text-base" type="search" placeholder="Search title, author, series, SKU…" aria-label="Search inventory" value={query} onChange={(e) => setQuery(e.target.value)} />
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-muted text-left text-muted-foreground">
-              <tr><th className="w-8" />{COLS.map(([, h]) => <th key={h} className="px-3 py-2 font-medium">{h}</th>)}<th /></tr>
+              <tr><th className="w-8" />{COLS.map(([k, h]) => <th key={h} className="px-1 py-1 font-medium" aria-sort={sort?.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+                <button className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-background/60" onClick={() => toggleSort(k)}>
+                  {h}<span className="text-xs">{sort?.key === k ? (sort.dir === "asc" ? "A→Z" : "Z→A") : ""}</span>
+                </button>
+              </th>)}<th /></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{q ? "No matching books." : filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
               {shown.map((b) => (
                 <tr key={b.id} className={`border-t ${b.needs_review ? "bg-warning/10" : ""}`}>
                   <td className="pl-2">
