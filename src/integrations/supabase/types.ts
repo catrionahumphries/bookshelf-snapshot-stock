@@ -53,12 +53,119 @@ export type Database = {
         }
         Relationships: []
       }
+      photo_jobs: {
+        Row: {
+          callback_token: string
+          callback_url: string
+          completed_at: string | null
+          created_at: string
+          error_message: string
+          id: string
+          image: string
+          lease_until: string | null
+          pause_kind: string
+          result_count: number
+          sku: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          callback_token?: string
+          callback_url: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string
+          id?: string
+          image: string
+          lease_until?: string | null
+          pause_kind?: string
+          result_count?: number
+          sku?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          callback_token?: string
+          callback_url?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string
+          id?: string
+          image?: string
+          lease_until?: string | null
+          pause_kind?: string
+          result_count?: number
+          sku?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      photo_queue_state: {
+        Row: {
+          pause_kind: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          pause_kind: string
+          reason: string
+          user_id: string
+        }
+        Update: {
+          pause_kind?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_photo_job: {
+        Args: { p_id: string }
+        Returns: {
+          callback_token: string
+          callback_url: string
+          completed_at: string | null
+          created_at: string
+          error_message: string
+          id: string
+          image: string
+          lease_until: string | null
+          pause_kind: string
+          result_count: number
+          sku: string
+          status: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "photo_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      enqueue_photo_job: {
+        Args: {
+          p_id: string
+          p_image: string
+          p_preview: boolean
+          p_sku: string
+        }
+        Returns: string
+      }
+      finish_photo_job: {
+        Args: { p_books: Json; p_id: string }
+        Returns: number
+      }
+      retry_photo_job: { Args: { p_id: string }; Returns: undefined }
+      verify_photo_callback: {
+        Args: { p_id: string; p_token: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
