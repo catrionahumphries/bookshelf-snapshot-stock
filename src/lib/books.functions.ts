@@ -1,18 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { BOOK_PHOTO_PROMPT } from "@/lib/book-photo-prompt";
 
 const schema = z.object({
   image: z.string().startsWith("data:image/").max(8_000_000, "Image too large"),
   skuStart: z.string().max(100).default(""),
 });
-
-const PROMPT = `You catalogue books for a second-hand bookseller.
-1. Find EVERY distinct book visible in this photo (covers or spines), in left-to-right / top-to-bottom order.
-2. Read what you can, then use web search to fill in missing details (full title, author, series name, volume number) and to verify what you read.
-3. Mark a book "uncertain": true if the text is blurry/partly hidden, or you could not confirm it via search, and explain briefly in "note".
-Reply ONLY with JSON: {"books":[{"title":string,"author":string,"series_name":string,"volume":string,"uncertain":boolean,"note":string}]}
-Use "" for unknown fields. "volume" is just the number (e.g. "3"), "" if not part of a series.`;
 
 export const extractBooks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -28,7 +22,7 @@ export const extractBooks = createServerFn({ method: "POST" })
           {
             role: "user",
             content: [
-              { type: "input_text", text: PROMPT },
+              { type: "input_text", text: BOOK_PHOTO_PROMPT },
               { type: "input_image", image_url: data.image, detail: "high" },
             ],
           },
