@@ -1,5 +1,6 @@
 import { generateResponse } from "@lovable.dev/ai-gateway";
 import { z } from "zod";
+import { BOOK_PHOTO_PROMPT } from "@/lib/book-photo-prompt";
 
 const bookSchema = z.object({
   title: z.string().trim(), author: z.string().trim(), series_name: z.string().trim(),
@@ -12,12 +13,7 @@ export async function readPhotoBooks(image: string) {
     model: "openai/gpt-6-astra",
     tools: [{ type: "web_search" }],
     input: [{ role: "user", content: [
-      { type: "input_text", text: `You catalogue books for a second-hand bookseller.
-1. Find EVERY distinct book visible in this photo (covers or spines), in left-to-right / top-to-bottom order.
-2. Read what you can, then use web search to fill in missing details (full title, author, series name, volume number) and to verify what you read.
-3. Mark a book "uncertain": true if the text is blurry/partly hidden, or you could not confirm it via search, and explain briefly in "note".
-Reply ONLY with JSON: {"books":[{"title":string,"author":string,"series_name":string,"volume":string,"uncertain":boolean,"note":string}]}
-Use "" for unknown fields. "volume" is just the number (e.g. "3"), "" if not part of a series.` },
+      { type: "input_text", text: BOOK_PHOTO_PROMPT },
       { type: "input_image", image_url: image, detail: "high" },
     ] }],
   });
