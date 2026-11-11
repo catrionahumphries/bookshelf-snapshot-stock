@@ -1,14 +1,30 @@
-# Welcome to your Lovable project
+# Bookshelf Snapshot Stock
+
+Build a book inventory app that helps me turn photos of books into a spreadsheet.
+
+Please build these features:
+
+An input form with an image uploader and a text box for a "SKU" number.
+
+A "Process Book" button. When clicked, use OpenAI Vision to read the uploaded photo and extract the Book Title and Author.
+
+A simple table below the form that saves and displays three columns: Book Title, Author, Book series (if applicable) and SKU.
+
+A "Download CSV" button that lets me export the whole table as a spreadsheet.
+
+Make the design clean, fast, and easy to use on my phone while I am sorting books.
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://bookshelf-snapshot-stock.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/316c6658-d2a0-4b0d-bd2c-703d883184fb).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +36,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
