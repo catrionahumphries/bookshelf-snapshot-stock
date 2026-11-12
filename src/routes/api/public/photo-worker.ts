@@ -39,7 +39,10 @@ export const Route = createFileRoute("/api/public/photo-worker")({
     }
     try {
       const { readPhotoBooks } = await import("@/lib/photo-catalog.server");
-      const books = await readPhotoBooks(job.image);
+      const { books, no_books_reason } = await readPhotoBooks(job.image);
+      // Store the explanation before completion so the first completed read has it.
+      const { error: reasonError } = await supabaseAdmin.from("photo_jobs").update({ error_message: no_books_reason }).eq("id", job.id).eq("status", "processing");
+      if (reasonError) throw new Error("Couldn't save the photo explanation. Please retry this photo.");
       const { error } = await supabaseAdmin.rpc("finish_photo_job", { p_id: job.id, p_books: books });
       if (error) throw new Error("Couldn't save the result. Please retry this photo.");
       return Response.json({ ok: true });
