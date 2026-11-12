@@ -32,4 +32,5 @@ use the editor.
 - Photo jobs are durable database rows awakened by insert/update webhooks, not browser-owned AI calls or permanent polling jobs, so processing survives leaving the app without idle Cloud work.
 - Worker callbacks verify a per-job random capability before privileged access, atomically claim one leased job, and commit inventory plus completion in one database transaction to prevent duplicate books.
 - Queue policy/credit/refusal pauses are persisted per user and require an explicit retry after recovery; never automatically replay uncertain AI outcomes.
-- Keep book-photo detection instructions in one shared prompt used by both extraction paths so visibility criteria stay consistent.
+- Both extraction paths use the shared photo-catalog helper and prompt so recognition, validation, and empty-result explanations stay consistent.
+- Completed zero-book jobs store their explanation in the existing error_message field before completion; display it separately from failures so empty results remain completed and never auto-retry.

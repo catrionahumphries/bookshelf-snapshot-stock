@@ -134,7 +134,8 @@ function Inventory({ email }: { email: string }) {
     const previous = completedRef.current;
     if (previous) for (const job of next) {
       if (job.status === "completed" && previous.get(job.id) !== "completed") {
-        toast.success(job.result_count ? `${job.result_count} books added${job.sku ? ` · ${job.sku}` : ""}` : `No books found${job.sku ? ` · ${job.sku}` : ""}`);
+        if (job.result_count) toast.success(`${job.result_count} books added${job.sku ? ` · ${job.sku}` : ""}`);
+        else toast.warning(`No books found${job.sku ? ` · ${job.sku}` : ""}`, { description: job.error_message || "No explanation was recorded for this earlier photo." });
         await load();
       }
     }
@@ -253,6 +254,13 @@ function Inventory({ email }: { email: string }) {
           <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-warning" />
           <div className="min-w-0 flex-1"><p className="font-medium break-words">{job.sku || "Photo"}</p><p className="text-muted-foreground break-words">{job.error_message || "This photo hasn't finished. Retry when you're ready."}</p></div>
           {job.pause_kind !== "refusal" && <Button variant="outline" size="sm" disabled={!!retrying} onClick={() => retryJob(job.id)}><RotateCcw className={retrying === job.id ? "animate-spin" : ""} />Retry</Button>}
+        </div>)}
+        {jobs.filter((job) => job.status === "completed" && job.result_count === 0).map((job) => <div key={job.id} className="mt-3 flex items-start gap-3 text-sm">
+          <BookOpen className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium break-words">No books found · {job.sku || new Date(job.created_at).toLocaleString()}</p>
+            <p className="text-muted-foreground break-words">{job.error_message || "No explanation was recorded for this earlier photo."}</p>
+          </div>
         </div>)}
       </section>}
 
