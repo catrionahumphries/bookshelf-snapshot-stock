@@ -27,6 +27,13 @@ describe("Strict photo recognition results", () => {
     generateResponse.mockResolvedValue(result([]));
     expect((await readPhotoBooks("data:image/jpeg;base64,fixture")).no_books_reason).toBe("The photo reader returned no books without explaining why. Try a closer photo of the complete cover or spine with readable text.");
   });
+  it("keeps a readable foreground cover without a readable spine", async () => {
+    const book = { title: "The Strongest Girl in the World", author: "", series_name: "", volume: "", uncertain: false, note: "Author could not be verified" };
+    generateResponse.mockResolvedValue(result([book]));
+    const read = await readPhotoBooks("data:image/jpeg;base64,fixture");
+    expect(read.books).toEqual([{ ...book, uncertain: true }]);
+    expect(read.no_books_reason).toBe("");
+  });
   it("does not turn unfinished processing into a no-books result", async () => {
     generateResponse.mockResolvedValue({ ...result([]), status: "incomplete" });
     await expect(readPhotoBooks("data:image/jpeg;base64,fixture")).rejects.toThrow("The photo reading did not finish");
