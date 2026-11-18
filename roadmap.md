@@ -1,4 +1,7 @@
 # Photo queue
+- [x] Add continuous barcode scanning with a beep, ISBN inventory/CSV column, and durable background catalog lookups.
+- [x] Test ISBN validation, saved scan entries, lookup completion, and phone layout.
+- [ ] Verify hosted automatic ISBN delivery (requires publication of the new scanner and worker).
 - [x] Improve readable-cover recognition and persist/display reasons for empty photos.
 - [x] Run recognition checks, read the supplied book photo successfully, and verify saved empty-result display signed in on phone and desktop.
 - [x] Add durable background photo jobs and secure wake-on-upload processing.

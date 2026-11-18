@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { queuePhoto, retryPhoto } from "@/lib/photo-queue.functions";
 import { photoCounts, needsPhotoAttention, type PhotoJob } from "@/lib/photo-queue";
+import { BarcodeScanner } from "@/components/barcode-scanner";
+import { retryIsbn } from "@/lib/isbn-queue.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,10 +29,10 @@ export const Route = createFileRoute("/")({
 
 type Book = {
   id: string; title: string; author: string; series_name: string; volume: string;
-  sku: string; needs_review: boolean; review_note: string;
+  sku: string; isbn: string; lookup_status: string; needs_review: boolean; review_note: string;
 };
-type Field = "title" | "author" | "series_name" | "volume" | "sku";
-const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"]];
+type Field = "title" | "author" | "series_name" | "volume" | "sku" | "isbn";
+const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"], ["isbn", "ISBN"]];
 
 async function shrink(file: File): Promise<string> {
   const img = new Image();
@@ -122,6 +124,12 @@ function Inventory({ email }: { email: string }) {
   const completedRef = useRef<Map<string, string> | null>(null);
   const run = useServerFn(queuePhoto);
   const retry = useServerFn(retryPhoto);
+  const retryScan = useServerFn(retryIsbn);
+  const [isbnJobs, setIsbnJobs] = useState<{ id: string; isbn: string; status: string; error_message: string; lease_until: string | null; created_at: string }[]>([]);
+  const loadIsbnJobs = async () => {
+    const { data, error } = await supabase.from("isbn_jobs").select("id,isbn,status,error_message,lease_until,created_at").order("created_at", { ascending: false });
+    if (!error) setIsbnJobs(data ?? []);
+  };
 
   const load = async () => {
     const { data, error } = await supabase.from("books").select("*").order("created_at", { ascending: false });
@@ -145,7 +153,8 @@ function Inventory({ email }: { email: string }) {
   useEffect(() => {
     load();
     loadJobs();
-    const onFocus = () => { load(); loadJobs(); };
+    loadIsbnJobs();
+    const onFocus = () => { load(); loadJobs(); loadIsbnJobs(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -155,6 +164,12 @@ function Inventory({ email }: { email: string }) {
     const timer = window.setInterval(() => { if (!document.hidden) loadJobs(); }, 5000);
     return () => window.clearInterval(timer);
   }, [counts.pending]);
+  const isbnPending = isbnJobs.filter((job) => job.status === "queued" || job.status === "processing").length;
+  useEffect(() => {
+    if (!isbnPending) return;
+    const timer = window.setInterval(() => { if (!document.hidden) { load(); loadIsbnJobs(); } }, 5000);
+    return () => window.clearInterval(timer);
+  }, [isbnPending]);
 
   const onFile = async (f?: File) => {
     if (!f) return;
@@ -242,7 +257,19 @@ function Inventory({ email }: { email: string }) {
         <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || preparing || !image}>
           {busy ? <><Loader2 className="animate-spin" /> Uploading…</> : "Queue Photo"}
         </Button>
+        <BarcodeScanner sku={sku} onSaved={() => { load(); loadIsbnJobs(); }} />
       </section>
+
+      {isbnJobs.length > 0 && <section aria-label="ISBN queue" className="mt-4 border-b pb-4 text-sm">
+        <p role="status" className="flex items-center gap-2">{isbnPending > 0 && <Loader2 className="h-4 w-4 animate-spin" />}{isbnPending} ISBN lookups pending · {isbnJobs.filter((job) => job.status === "completed").length} completed</p>
+        {isbnJobs.filter((job) => job.status === "failed" || (job.status === "processing" && job.lease_until && Date.parse(job.lease_until) < Date.now()) || (job.status === "queued" && Date.parse(job.created_at) < Date.now() - 180000)).map((job) => <div key={job.id} className="mt-3 flex items-start gap-2">
+          <p className="min-w-0 flex-1 break-words text-muted-foreground">{job.isbn} · {job.error_message || "This lookup hasn't finished. Retry when ready."}</p>
+          <Button size="sm" variant="outline" onClick={async () => {
+            try { await retryScan({ data: { id: job.id } }); await loadIsbnJobs(); await load(); }
+            catch (error) { toast.error(error instanceof Error ? error.message : "Couldn't retry ISBN"); }
+          }}><RotateCcw />Retry</Button>
+        </div>)}
+      </section>}
 
       {jobs.length > 0 && <section className="mt-4 border-b pb-4" aria-label="Photo queue">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" role="status">
@@ -273,9 +300,9 @@ function Inventory({ email }: { email: string }) {
           </div>
           <Button className="ml-auto" variant="outline" onClick={download} disabled={!books.length}><Download /> CSV</Button>
         </div>
-        <Input className="mb-3 h-11 text-base" type="search" placeholder="Search title, author, series, SKU…" aria-label="Search inventory" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input className="mb-3 h-11 text-base" type="search" placeholder="Search title, author, series, SKU, ISBN…" aria-label="Search inventory" value={query} onChange={(e) => setQuery(e.target.value)} />
         <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-muted text-left text-muted-foreground">
               <tr><th className="w-8" />{COLS.map(([k, h]) => <th key={h} className="px-1 py-1 font-medium" aria-sort={sort?.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
                 <button className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-background/60" onClick={() => toggleSort(k)}>
@@ -284,7 +311,7 @@ function Inventory({ email }: { email: string }) {
               </th>)}<th /></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{q ? "No matching books." : filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">{q ? "No matching books." : filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
               {shown.map((b) => (
                 <tr key={b.id} className={`border-t ${b.needs_review ? "bg-warning/10" : ""}`}>
                   <td className="pl-2">
@@ -298,7 +325,7 @@ function Inventory({ email }: { email: string }) {
                   </td>
                   {COLS.map(([k]) => (
                     <td key={k} className={`px-1 py-1 ${k === "volume" ? "w-20" : ""}`}>
-                      <input className="w-full rounded-md bg-transparent px-2 py-1.5 outline-none focus:bg-muted" defaultValue={b[k]}
+                      <input key={`${b.id}-${k}-${b[k]}`} aria-label={`${k} for ${b.isbn || b.title}`} placeholder={k === "title" && b.lookup_status === "queued" ? "Looking up details…" : ""} className="w-full rounded-md bg-transparent px-2 py-1.5 outline-none focus:bg-muted" defaultValue={b[k]}
                         onBlur={(e) => e.target.value !== b[k] && patch(b.id, { [k]: e.target.value })} />
                       {k === "title" && b.needs_review && b.review_note && <p className="px-2 pb-1 text-xs text-muted-foreground">{b.review_note}</p>}
                     </td>

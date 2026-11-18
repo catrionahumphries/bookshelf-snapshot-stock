@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ApiPublicIsbnWorkerRouteImport } from './routes/api/public/isbn-worker'
 import { Route as ApiPublicPhotoWorkerRouteImport } from './routes/api/public/photo-worker'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicIsbnWorkerRoute = ApiPublicIsbnWorkerRouteImport.update({
+  id: '/api/public/isbn-worker',
+  path: '/api/public/isbn-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPhotoWorkerRoute = ApiPublicPhotoWorkerRouteImport.update({
   id: '/api/public/photo-worker',
   path: '/api/public/photo-worker',
@@ -32,30 +38,47 @@ const ApiPublicPhotoWorkerRoute = ApiPublicPhotoWorkerRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/public/isbn-worker': typeof ApiPublicIsbnWorkerRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/public/isbn-worker': typeof ApiPublicIsbnWorkerRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/public/isbn-worker': typeof ApiPublicIsbnWorkerRoute
   '/api/public/photo-worker': typeof ApiPublicPhotoWorkerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/reset-password' | '/api/public/photo-worker'
+  fullPaths:
+    | '/'
+    | '/reset-password'
+    | '/api/public/isbn-worker'
+    | '/api/public/photo-worker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/reset-password' | '/api/public/photo-worker'
-  id: '__root__' | '/' | '/reset-password' | '/api/public/photo-worker'
+  to:
+    | '/'
+    | '/reset-password'
+    | '/api/public/isbn-worker'
+    | '/api/public/photo-worker'
+  id:
+    | '__root__'
+    | '/'
+    | '/reset-password'
+    | '/api/public/isbn-worker'
+    | '/api/public/photo-worker'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicIsbnWorkerRoute: typeof ApiPublicIsbnWorkerRoute
   ApiPublicPhotoWorkerRoute: typeof ApiPublicPhotoWorkerRoute
 }
 
@@ -75,6 +98,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/isbn-worker': {
+      id: '/api/public/isbn-worker'
+      path: '/api/public/isbn-worker'
+      fullPath: '/api/public/isbn-worker'
+      preLoaderRoute: typeof ApiPublicIsbnWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/photo-worker': {
       id: '/api/public/photo-worker'
       path: '/api/public/photo-worker'
@@ -88,6 +118,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicIsbnWorkerRoute: ApiPublicIsbnWorkerRoute,
   ApiPublicPhotoWorkerRoute: ApiPublicPhotoWorkerRoute,
 }
 export const routeTree = rootRouteImport

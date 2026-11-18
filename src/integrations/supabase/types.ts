@@ -19,6 +19,8 @@ export type Database = {
           author: string
           created_at: string
           id: string
+          isbn: string
+          lookup_status: string
           needs_review: boolean
           review_note: string
           series_name: string
@@ -31,6 +33,8 @@ export type Database = {
           author?: string
           created_at?: string
           id?: string
+          isbn?: string
+          lookup_status?: string
           needs_review?: boolean
           review_note?: string
           series_name?: string
@@ -43,6 +47,8 @@ export type Database = {
           author?: string
           created_at?: string
           id?: string
+          isbn?: string
+          lookup_status?: string
           needs_review?: boolean
           review_note?: string
           series_name?: string
@@ -52,6 +58,53 @@ export type Database = {
           volume?: string
         }
         Relationships: []
+      }
+      isbn_jobs: {
+        Row: {
+          book_id: string
+          callback_token: string
+          callback_url: string
+          created_at: string
+          error_message: string
+          id: string
+          isbn: string
+          lease_until: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          book_id: string
+          callback_token?: string
+          callback_url: string
+          created_at?: string
+          error_message?: string
+          id: string
+          isbn: string
+          lease_until?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string
+          callback_token?: string
+          callback_url?: string
+          created_at?: string
+          error_message?: string
+          id?: string
+          isbn?: string
+          lease_until?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "isbn_jobs_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       photo_jobs: {
         Row: {
@@ -124,6 +177,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_isbn_job: {
+        Args: { p_id: string; p_token: string }
+        Returns: {
+          book_id: string
+          callback_token: string
+          callback_url: string
+          created_at: string
+          error_message: string
+          id: string
+          isbn: string
+          lease_until: string | null
+          status: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "isbn_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_photo_job: {
         Args: { p_id: string }
         Returns: {
@@ -148,6 +222,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      enqueue_isbn_job: {
+        Args: { p_id: string; p_isbn: string; p_sku: string }
+        Returns: string
+      }
       enqueue_photo_job: {
         Args: {
           p_id: string
@@ -157,11 +235,25 @@ export type Database = {
         }
         Returns: string
       }
+      finish_isbn_job: {
+        Args: {
+          p_details: Json
+          p_error: string
+          p_id: string
+          p_token: string
+        }
+        Returns: undefined
+      }
       finish_photo_job: {
         Args: { p_books: Json; p_id: string }
         Returns: number
       }
+      retry_isbn_job: { Args: { p_id: string }; Returns: undefined }
       retry_photo_job: { Args: { p_id: string }; Returns: undefined }
+      verify_isbn_callback: {
+        Args: { p_id: string; p_token: string }
+        Returns: boolean
+      }
       verify_photo_callback: {
         Args: { p_id: string; p_token: string }
         Returns: boolean
