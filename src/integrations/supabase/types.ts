@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           author: string
           created_at: string
+          format: string
           id: string
           isbn: string
           lookup_status: string
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           author?: string
           created_at?: string
+          format?: string
           id?: string
           isbn?: string
           lookup_status?: string
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           author?: string
           created_at?: string
+          format?: string
           id?: string
           isbn?: string
           lookup_status?: string
@@ -113,6 +116,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           error_message: string
+          format: string
           id: string
           image: string
           lease_until: string | null
@@ -128,6 +132,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error_message?: string
+          format?: string
           id?: string
           image: string
           lease_until?: string | null
@@ -143,6 +148,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error_message?: string
+          format?: string
           id?: string
           image?: string
           lease_until?: string | null
@@ -206,6 +212,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           error_message: string
+          format: string
           id: string
           image: string
           lease_until: string | null
@@ -223,11 +230,12 @@ export type Database = {
         }
       }
       enqueue_isbn_job: {
-        Args: { p_id: string; p_isbn: string; p_sku: string }
+        Args: { p_format?: string; p_id: string; p_isbn: string; p_sku: string }
         Returns: string
       }
       enqueue_photo_job: {
         Args: {
+          p_format?: string
           p_id: string
           p_image: string
           p_preview: boolean

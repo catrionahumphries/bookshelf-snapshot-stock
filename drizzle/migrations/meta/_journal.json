@@ -36,6 +36,13 @@
       "when": 1794981235247,
       "tag": "0004_isbn_background_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794981934501,
+      "tag": "0005_add_book_format",
+      "breakpoints": true
     }
   ]
 }

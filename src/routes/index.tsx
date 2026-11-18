@@ -11,6 +11,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { queuePhoto, retryPhoto } from "@/lib/photo-queue.functions";
 import { photoCounts, needsPhotoAttention, type PhotoJob } from "@/lib/photo-queue";
 import { BarcodeScanner } from "@/components/barcode-scanner";
+import { BOOK_FORMATS } from "@/lib/book-format";
 import { retryIsbn } from "@/lib/isbn-queue.functions";
 
 export const Route = createFileRoute("/")({
@@ -29,10 +30,10 @@ export const Route = createFileRoute("/")({
 
 type Book = {
   id: string; title: string; author: string; series_name: string; volume: string;
-  sku: string; isbn: string; lookup_status: string; needs_review: boolean; review_note: string;
+  sku: string; format: string; isbn: string; lookup_status: string; needs_review: boolean; review_note: string;
 };
-type Field = "title" | "author" | "series_name" | "volume" | "sku" | "isbn";
-const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"], ["isbn", "ISBN"]];
+type Field = "title" | "author" | "series_name" | "volume" | "sku" | "format" | "isbn";
+const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"], ["format", "Format"], ["isbn", "ISBN"]];
 
 async function shrink(file: File): Promise<string> {
   const img = new Image();
@@ -111,6 +112,7 @@ function Inventory({ email }: { email: string }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [image, setImage] = useState<string | null>(null);
   const [sku, setSku] = useState("");
+  const [format, setFormat] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<"all" | "review">("all");
   const [query, setQuery] = useState("");
@@ -185,7 +187,7 @@ function Inventory({ email }: { email: string }) {
       const id = jobIdRef.current ?? crypto.randomUUID();
       jobIdRef.current = id;
       const preview = window.location.hostname === "localhost" || window.location.hostname.startsWith("id-preview--") || window.location.hostname.includes("-dev.lovable.app");
-      await run({ data: { id, image, sku, preview } });
+      await run({ data: { id, image, sku, format, preview } });
       toast.success("Photo queued");
       setImage(null); setSku("");
       jobIdRef.current = null;
@@ -253,11 +255,14 @@ function Inventory({ email }: { email: string }) {
           <Button variant="outline" className="h-12" disabled={busy || preparing} onClick={() => fileRef.current?.click()}><Images />Camera roll</Button>
         </div>
         <Input className="mt-3 h-12 text-base" placeholder="SKU number" aria-label="SKU number" maxLength={100} disabled={busy} value={sku} onChange={(e) => { setSku(e.target.value); jobIdRef.current = crypto.randomUUID(); }} />
-        <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo gets this SKU.</p>
+        <div role="radiogroup" aria-label="Book format" className="mt-3 flex flex-wrap gap-2">
+          {BOOK_FORMATS.map((f) => <Button key={f} type="button" role="radio" aria-checked={format === f} size="sm" variant={format === f ? "default" : "outline"} disabled={busy} onClick={() => { setFormat(format === f ? "" : f); jobIdRef.current = crypto.randomUUID(); }}>{f}</Button>)}
+        </div>
+        <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo or scan gets this SKU and format.</p>
         <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || preparing || !image}>
           {busy ? <><Loader2 className="animate-spin" /> Uploading…</> : "Queue Photo"}
         </Button>
-        <BarcodeScanner sku={sku} onSaved={() => { load(); loadIsbnJobs(); }} />
+        <BarcodeScanner sku={sku} format={format} onSaved={() => { load(); loadIsbnJobs(); }} />
       </section>
 
       {isbnJobs.length > 0 && <section aria-label="ISBN queue" className="mt-4 border-b pb-4 text-sm">
@@ -325,8 +330,10 @@ function Inventory({ email }: { email: string }) {
                   </td>
                   {COLS.map(([k]) => (
                     <td key={k} className={`px-1 py-1 ${k === "volume" ? "w-20" : ""}`}>
-                      <input key={`${b.id}-${k}-${b[k]}`} aria-label={`${k} for ${b.isbn || b.title}`} placeholder={k === "title" && b.lookup_status === "queued" ? "Looking up details…" : ""} className="w-full rounded-md bg-transparent px-2 py-1.5 outline-none focus:bg-muted" defaultValue={b[k]}
-                        onBlur={(e) => e.target.value !== b[k] && patch(b.id, { [k]: e.target.value })} />
+                      {k === "format" ? <select aria-label={`format for ${b.isbn || b.title}`} className="w-full rounded-md bg-transparent px-1 py-1.5 outline-none focus:bg-muted" value={b.format} onChange={(e) => patch(b.id, { format: e.target.value })}>
+                        <option value="">—</option>{BOOK_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select> : <input key={`${b.id}-${k}-${b[k]}`} aria-label={`${k} for ${b.isbn || b.title}`} placeholder={k === "title" && b.lookup_status === "queued" ? "Looking up details…" : ""} className="w-full rounded-md bg-transparent px-2 py-1.5 outline-none focus:bg-muted" defaultValue={b[k]}
+                        onBlur={(e) => e.target.value !== b[k] && patch(b.id, { [k]: e.target.value })} />}
                       {k === "title" && b.needs_review && b.review_note && <p className="px-2 pb-1 text-xs text-muted-foreground">{b.review_note}</p>}
                     </td>
                   ))}

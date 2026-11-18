@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { queueIsbn } from "@/lib/isbn-queue.functions";
 import { acceptBarcode, normalizeIsbn } from "@/lib/isbn";
 
-type Scan = { id: string; isbn: string; sku: string; state: "saving" | "saved" | "failed" };
+type Scan = { id: string; isbn: string; sku: string; format: string; state: "saving" | "saved" | "failed" };
 
-export function BarcodeScanner({ sku, onSaved }: { sku: string; onSaved: () => void }) {
+export function BarcodeScanner({ sku, format, onSaved }: { sku: string; format: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [manual, setManual] = useState("");
@@ -16,15 +16,15 @@ export function BarcodeScanner({ sku, onSaved }: { sku: string; onSaved: () => v
   const [scans, setScans] = useState<Scan[]>([]);
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<AudioContext | null>(null);
-  const latest = useRef({ sku, onSaved });
+  const latest = useRef({ sku, format, onSaved });
   const last = useRef<{ isbn: string; time: number } | null>(null);
   const queue = useServerFn(queueIsbn);
-  latest.current = { sku, onSaved };
+  latest.current = { sku, format, onSaved };
 
   const save = async (scan: Scan) => {
     setScans((items) => items.map((item) => item.id === scan.id ? { ...item, state: "saving" } : item));
     try {
-      await queue({ data: { id: scan.id, isbn: scan.isbn, sku: scan.sku } });
+      await queue({ data: { id: scan.id, isbn: scan.isbn, sku: scan.sku, format: scan.format } });
       setScans((items) => items.map((item) => item.id === scan.id ? { ...item, state: "saved" } : item));
       const ctx = audio.current;
       if (ctx && ctx.state === "running") {
@@ -42,7 +42,7 @@ export function BarcodeScanner({ sku, onSaved }: { sku: string; onSaved: () => v
     }
   };
   const add = (isbn: string) => {
-    const scan: Scan = { id: crypto.randomUUID(), isbn, sku: latest.current.sku, state: "saving" };
+    const scan: Scan = { id: crypto.randomUUID(), isbn, sku: latest.current.sku, format: latest.current.format, state: "saving" };
     setScans((items) => [scan, ...items]);
     void save(scan);
   };
@@ -86,7 +86,7 @@ export function BarcodeScanner({ sku, onSaved }: { sku: string; onSaved: () => v
       setOpen(true);
     }}><ScanBarcode />Scan barcodes</Button>
     {open && <section className="mt-3 space-y-3" aria-label="Barcode scanner">
-      <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">ISBN scanner · SKU {sku || "—"}</span><Button size="icon" variant="ghost" aria-label="Close barcode scanner" disabled={scans.some((scan) => scan.state !== "saved")} onClick={() => setOpen(false)}><X /></Button></div>
+      <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">ISBN scanner · SKU {sku || "—"}{format ? ` · ${format}` : ""}</span><Button size="icon" variant="ghost" aria-label="Close barcode scanner" disabled={scans.some((scan) => scan.state !== "saved")} onClick={() => setOpen(false)}><X /></Button></div>
       <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
         <video ref={video} className="h-full w-full object-cover" muted playsInline aria-label="Live barcode camera" />
         {!cameraError && <div className="pointer-events-none absolute inset-x-8 top-1/3 h-1/3 rounded border-2 border-primary" />}
