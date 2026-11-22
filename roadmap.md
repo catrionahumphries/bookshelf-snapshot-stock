@@ -1,4 +1,5 @@
 # Photo queue
+- [x] Add free-text source to photo uploads, saved inventory, editing, search, and CSV; verify it survives background processing.
 - [x] Add continuous barcode scanning with a beep, ISBN inventory/CSV column, and durable background catalog lookups.
 - [x] Test ISBN validation, saved scan entries, lookup completion, and phone layout.
 - [ ] Verify hosted automatic ISBN delivery (requires publication of the new scanner and worker).

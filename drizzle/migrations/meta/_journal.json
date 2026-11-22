@@ -43,6 +43,13 @@
       "when": 1794981934501,
       "tag": "0005_add_book_format",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795316091208,
+      "tag": "0006_add_item_source",
+      "breakpoints": true
     }
   ]
 }

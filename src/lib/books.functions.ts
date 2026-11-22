@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const schema = z.object({
   image: z.string().startsWith("data:image/").max(8_000_000, "Image too large"),
   skuStart: z.string().max(100).default(""),
+  source: z.string().max(2000).default(""),
 });
 
 export const extractBooks = createServerFn({ method: "POST" })
@@ -35,6 +36,7 @@ export const extractBooks = createServerFn({ method: "POST" })
       series_name: b.series_name,
       volume: b.volume,
       sku: data.skuStart.trim(),
+      source: data.source,
       needs_review: b.uncertain,
       review_note: b.note,
     }));

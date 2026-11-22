@@ -28,10 +28,10 @@ export const Route = createFileRoute("/")({
 
 type Book = {
   id: string; title: string; author: string; series_name: string; volume: string;
-  sku: string; format: string; isbn: string; lookup_status: string; needs_review: boolean; review_note: string;
+  sku: string; format: string; source: string; isbn: string; lookup_status: string; needs_review: boolean; review_note: string;
 };
-type Field = "title" | "author" | "series_name" | "volume" | "sku" | "format" | "isbn";
-const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"], ["format", "Format"], ["isbn", "ISBN"]];
+type Field = "title" | "author" | "series_name" | "volume" | "sku" | "format" | "source" | "isbn";
+const COLS: [Field, string][] = [["title", "Book Title"], ["author", "Author"], ["series_name", "Series Name"], ["volume", "Volume #"], ["sku", "SKU"], ["format", "Format"], ["source", "Source"], ["isbn", "ISBN"]];
 
 async function shrink(file: File): Promise<string> {
   const img = new Image();
@@ -111,6 +111,7 @@ function Inventory({ email }: { email: string }) {
   const [image, setImage] = useState<string | null>(null);
   const [sku, setSku] = useState("");
   const [format, setFormat] = useState("");
+  const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<"all" | "review">("all");
   const [query, setQuery] = useState("");
@@ -172,7 +173,7 @@ function Inventory({ email }: { email: string }) {
       const id = jobIdRef.current ?? crypto.randomUUID();
       jobIdRef.current = id;
       const preview = window.location.hostname === "localhost" || window.location.hostname.startsWith("id-preview--") || window.location.hostname.includes("-dev.lovable.app");
-      await run({ data: { id, image, sku, format, preview } });
+      await run({ data: { id, image, sku, format, source, preview } });
       toast.success("Photo queued");
       setImage(null); setSku("");
       jobIdRef.current = null;
@@ -240,6 +241,8 @@ function Inventory({ email }: { email: string }) {
           <Button variant="outline" className="h-12" disabled={busy || preparing} onClick={() => fileRef.current?.click()}><Images />Camera roll</Button>
         </div>
         <Input className="mt-3 h-12 text-base" placeholder="SKU number" aria-label="SKU number" maxLength={100} disabled={busy} value={sku} onChange={(e) => { setSku(e.target.value); jobIdRef.current = crypto.randomUUID(); }} />
+        <label htmlFor="item-source" className="mt-3 block text-sm font-medium">Source</label>
+        <Input id="item-source" className="mt-1 h-12 text-base" placeholder="Where you sourced the items" maxLength={2000} disabled={busy} value={source} onChange={(e) => { setSource(e.target.value); jobIdRef.current = crypto.randomUUID(); }} />
         <div role="radiogroup" aria-label="Book format" className="mt-3 flex flex-wrap gap-2">
           {BOOK_FORMATS.map((f) => <Button key={f} type="button" role="radio" aria-checked={format === f} size="sm" variant={format === f ? "default" : "outline"} disabled={busy} onClick={() => { setFormat(format === f ? "" : f); jobIdRef.current = crypto.randomUUID(); }}>{f}</Button>)}
         </div>
@@ -279,9 +282,9 @@ function Inventory({ email }: { email: string }) {
           </div>
           <Button className="ml-auto" variant="outline" onClick={download} disabled={!books.length}><Download /> CSV</Button>
         </div>
-        <Input className="mb-3 h-11 text-base" type="search" placeholder="Search title, author, series, SKU, ISBN…" aria-label="Search inventory" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input className="mb-3 h-11 text-base" type="search" placeholder="Search title, author, series, SKU, source, ISBN…" aria-label="Search inventory" value={query} onChange={(e) => setQuery(e.target.value)} />
         <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[1050px] text-sm">
             <thead className="bg-muted text-left text-muted-foreground">
               <tr><th className="w-8" />{COLS.map(([k, h]) => <th key={h} className="px-1 py-1 font-medium" aria-sort={sort?.key === k ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
                 <button className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-left hover:bg-background/60" onClick={() => toggleSort(k)}>
@@ -290,7 +293,7 @@ function Inventory({ email }: { email: string }) {
               </th>)}<th /></tr>
             </thead>
             <tbody>
-              {shown.length === 0 && <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">{q ? "No matching books." : filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
+              {shown.length === 0 && <tr><td colSpan={COLS.length + 2} className="px-3 py-8 text-center text-muted-foreground">{q ? "No matching books." : filter === "review" ? "Nothing to check." : "No books yet — snap your first photo above."}</td></tr>}
               {shown.map((b) => (
                 <tr key={b.id} className={`border-t ${b.needs_review ? "bg-warning/10" : ""}`}>
                   <td className="pl-2">

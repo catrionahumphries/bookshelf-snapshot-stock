@@ -26,6 +26,7 @@ export type Database = {
           review_note: string
           series_name: string
           sku: string
+          source: string
           title: string
           user_id: string
           volume: string
@@ -41,6 +42,7 @@ export type Database = {
           review_note?: string
           series_name?: string
           sku?: string
+          source?: string
           title?: string
           user_id?: string
           volume?: string
@@ -56,6 +58,7 @@ export type Database = {
           review_note?: string
           series_name?: string
           sku?: string
+          source?: string
           title?: string
           user_id?: string
           volume?: string
@@ -123,6 +126,7 @@ export type Database = {
           pause_kind: string
           result_count: number
           sku: string
+          source: string
           status: string
           user_id: string
         }
@@ -139,6 +143,7 @@ export type Database = {
           pause_kind?: string
           result_count?: number
           sku?: string
+          source?: string
           status?: string
           user_id: string
         }
@@ -155,6 +160,7 @@ export type Database = {
           pause_kind?: string
           result_count?: number
           sku?: string
+          source?: string
           status?: string
           user_id?: string
         }
@@ -219,6 +225,7 @@ export type Database = {
           pause_kind: string
           result_count: number
           sku: string
+          source: string
           status: string
           user_id: string
         }[]
@@ -240,6 +247,17 @@ export type Database = {
           p_image: string
           p_preview: boolean
           p_sku: string
+        }
+        Returns: string
+      }
+      enqueue_photo_with_source: {
+        Args: {
+          p_format: string
+          p_id: string
+          p_image: string
+          p_preview: boolean
+          p_sku: string
+          p_source: string
         }
         Returns: string
       }

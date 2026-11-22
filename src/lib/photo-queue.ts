@@ -1,3 +1,12 @@
+import { z } from "zod";
+import { isBookFormat } from "@/lib/book-format";
+
+export const photoUploadSchema = z.object({
+  id: z.string().uuid(), image: z.string().startsWith("data:image/").max(8_000_000),
+  sku: z.string().max(100), format: z.string().refine(isBookFormat).default(""),
+  source: z.string().max(2000).default(""), preview: z.boolean(),
+});
+
 export type PhotoJob = {
   id: string;
   sku: string;
