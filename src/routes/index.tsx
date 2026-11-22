@@ -10,9 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { queuePhoto, retryPhoto } from "@/lib/photo-queue.functions";
 import { photoCounts, needsPhotoAttention, type PhotoJob } from "@/lib/photo-queue";
-import { BarcodeScanner } from "@/components/barcode-scanner";
 import { BOOK_FORMATS } from "@/lib/book-format";
-import { retryIsbn } from "@/lib/isbn-queue.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -126,12 +124,6 @@ function Inventory({ email }: { email: string }) {
   const completedRef = useRef<Map<string, string> | null>(null);
   const run = useServerFn(queuePhoto);
   const retry = useServerFn(retryPhoto);
-  const retryScan = useServerFn(retryIsbn);
-  const [isbnJobs, setIsbnJobs] = useState<{ id: string; isbn: string; status: string; error_message: string; lease_until: string | null; created_at: string }[]>([]);
-  const loadIsbnJobs = async () => {
-    const { data, error } = await supabase.from("isbn_jobs").select("id,isbn,status,error_message,lease_until,created_at").order("created_at", { ascending: false });
-    if (!error) setIsbnJobs(data ?? []);
-  };
 
   const load = async () => {
     const { data, error } = await supabase.from("books").select("*").order("created_at", { ascending: false });
@@ -155,8 +147,7 @@ function Inventory({ email }: { email: string }) {
   useEffect(() => {
     load();
     loadJobs();
-    loadIsbnJobs();
-    const onFocus = () => { load(); loadJobs(); loadIsbnJobs(); };
+    const onFocus = () => { load(); loadJobs(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
@@ -166,12 +157,6 @@ function Inventory({ email }: { email: string }) {
     const timer = window.setInterval(() => { if (!document.hidden) loadJobs(); }, 5000);
     return () => window.clearInterval(timer);
   }, [counts.pending]);
-  const isbnPending = isbnJobs.filter((job) => job.status === "queued" || job.status === "processing").length;
-  useEffect(() => {
-    if (!isbnPending) return;
-    const timer = window.setInterval(() => { if (!document.hidden) { load(); loadIsbnJobs(); } }, 5000);
-    return () => window.clearInterval(timer);
-  }, [isbnPending]);
 
   const onFile = async (f?: File) => {
     if (!f) return;
@@ -258,23 +243,12 @@ function Inventory({ email }: { email: string }) {
         <div role="radiogroup" aria-label="Book format" className="mt-3 flex flex-wrap gap-2">
           {BOOK_FORMATS.map((f) => <Button key={f} type="button" role="radio" aria-checked={format === f} size="sm" variant={format === f ? "default" : "outline"} disabled={busy} onClick={() => { setFormat(format === f ? "" : f); jobIdRef.current = crypto.randomUUID(); }}>{f}</Button>)}
         </div>
-        <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo or scan gets this SKU and format.</p>
+        <p className="mt-1 px-1 text-xs text-muted-foreground">Every book in this photo gets this SKU and format.</p>
         <Button className="mt-3 h-12 w-full text-base" onClick={process} disabled={busy || preparing || !image}>
           {busy ? <><Loader2 className="animate-spin" /> Uploading…</> : "Queue Photo"}
         </Button>
-        <BarcodeScanner sku={sku} format={format} onSaved={() => { load(); loadIsbnJobs(); }} />
       </section>
 
-      {isbnJobs.length > 0 && <section aria-label="ISBN queue" className="mt-4 border-b pb-4 text-sm">
-        <p role="status" className="flex items-center gap-2">{isbnPending > 0 && <Loader2 className="h-4 w-4 animate-spin" />}{isbnPending} ISBN lookups pending · {isbnJobs.filter((job) => job.status === "completed").length} completed</p>
-        {isbnJobs.filter((job) => job.status === "failed" || (job.status === "processing" && job.lease_until && Date.parse(job.lease_until) < Date.now()) || (job.status === "queued" && Date.parse(job.created_at) < Date.now() - 180000)).map((job) => <div key={job.id} className="mt-3 flex items-start gap-2">
-          <p className="min-w-0 flex-1 break-words text-muted-foreground">{job.isbn} · {job.error_message || "This lookup hasn't finished. Retry when ready."}</p>
-          <Button size="sm" variant="outline" onClick={async () => {
-            try { await retryScan({ data: { id: job.id } }); await loadIsbnJobs(); await load(); }
-            catch (error) { toast.error(error instanceof Error ? error.message : "Couldn't retry ISBN"); }
-          }}><RotateCcw />Retry</Button>
-        </div>)}
-      </section>}
 
       {jobs.length > 0 && <section className="mt-4 border-b pb-4" aria-label="Photo queue">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" role="status">

@@ -37,3 +37,5 @@ use the editor.
 - ISBN scans create inventory placeholders and durable webhook jobs in one transaction; token-verified leased workers update that same entry, so closing the scanner cannot lose accepted scans.
 - ISBN catalogue matches must verify the exact normalized identifier; missing catalogue and series details are flagged for manual review rather than guessed.
 - Load the barcode library dynamically after camera activation and release camera tracks on close; only beep after a scan is durably saved.
+
+- The in-app barcode/ISBN scanner UI was removed at the user's request; ISBN data, column and backend job code remain so existing entries keep working.
