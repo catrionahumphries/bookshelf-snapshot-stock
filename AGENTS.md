@@ -33,6 +33,7 @@ use the editor.
 - Worker callbacks verify a per-job random capability before privileged access, atomically claim one leased job, and commit inventory plus completion in one database transaction to prevent duplicate books.
 - Queue policy/credit/refusal pauses are persisted per user and require an explicit retry after recovery; never automatically replay uncertain AI outcomes.
 - Both extraction paths use the shared photo-catalog helper and prompt so recognition, validation, and empty-result explanations stay consistent.
+- The shared photo helper folds the optional magazine issue date into the inventory title and removes that extraction-only field before persistence, preserving the existing inventory schema.
 - Completed zero-book jobs store their explanation in the existing error_message field before completion; display it separately from failures so empty results remain completed and never auto-retry.
 - ISBN scans create inventory placeholders and durable webhook jobs in one transaction; token-verified leased workers update that same entry, so closing the scanner cannot lose accepted scans.
 - ISBN catalogue matches must verify the exact normalized identifier; missing catalogue and series details are flagged for manual review rather than guessed.

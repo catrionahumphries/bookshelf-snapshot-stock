@@ -5,6 +5,7 @@ import { BOOK_PHOTO_PROMPT } from "@/lib/book-photo-prompt";
 const bookSchema = z.object({
   title: z.string().trim(), author: z.string().trim(), series_name: z.string().trim(),
   volume: z.string().trim(), uncertain: z.boolean(), note: z.string().trim(),
+  magazine_issue_date: z.string().trim().default(""),
 });
 export class PhotoRefusal extends Error {}
 
@@ -30,7 +31,13 @@ export async function readPhotoBooks(image: string) {
     books: z.array(bookSchema),
     no_books_reason: z.string().trim().max(500).default(""),
   }).parse(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, "")));
-  const books = parsed.books.map((book) => ({ ...book, uncertain: book.uncertain || !book.title || !book.author }));
+  const books = parsed.books.map(({ magazine_issue_date, ...book }) => ({
+    ...book,
+    title: magazine_issue_date && !book.title.toLowerCase().endsWith(magazine_issue_date.toLowerCase())
+      ? `${book.title} ${magazine_issue_date}`.trim()
+      : book.title,
+    uncertain: book.uncertain || !book.title || !book.author,
+  }));
   return {
     books,
     no_books_reason: books.length ? "" : parsed.no_books_reason || "The photo reader returned no books without explaining why. Try a closer photo of the complete cover or spine with readable text.",

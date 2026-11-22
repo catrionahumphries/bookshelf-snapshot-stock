@@ -11,6 +11,23 @@ function result(books: unknown[], no_books_reason = "") {
 describe("Strict photo recognition results", () => {
   beforeEach(() => generateResponse.mockReset());
 
+  it("includes a magazine's issue month and year in its saved title", async () => {
+    generateResponse.mockResolvedValue(result([{ title: "Australian healthy food guide", magazine_issue_date: "November 2021", author: "", series_name: "", volume: "November 2021", uncertain: false, note: "" }]));
+    const read = await readPhotoBooks("data:image/jpeg;base64,fixture");
+    expect(read.books[0]?.title).toBe("Australian healthy food guide November 2021");
+    expect(read.books[0]).not.toHaveProperty("magazine_issue_date");
+  });
+
+  it("does not duplicate a magazine date already included in the title", async () => {
+    generateResponse.mockResolvedValue(result([{ title: "Australian healthy food guide November 2021", magazine_issue_date: "November 2021", author: "", series_name: "", volume: "November 2021", uncertain: false, note: "" }]));
+    expect((await readPhotoBooks("data:image/jpeg;base64,fixture")).books[0]?.title).toBe("Australian healthy food guide November 2021");
+  });
+
+  it("does not invent an unknown magazine issue date", async () => {
+    generateResponse.mockResolvedValue(result([{ title: "Australian healthy food guide", magazine_issue_date: "", author: "", series_name: "", volume: "", uncertain: true, note: "Issue date could not be verified" }]));
+    expect((await readPhotoBooks("data:image/jpeg;base64,fixture")).books[0]?.title).toBe("Australian healthy food guide");
+  });
+
   it("returns no inventory candidates when the reader finds no qualifying books", async () => {
     generateResponse.mockResolvedValue(result([], "Only shadows and background book fragments are visible."));
     expect(await readPhotoBooks("data:image/jpeg;base64,fixture")).toEqual({ books: [], no_books_reason: "Only shadows and background book fragments are visible." });
